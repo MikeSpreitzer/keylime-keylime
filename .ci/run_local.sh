@@ -1,13 +1,15 @@
 #!/bin/bash
 
-# Your local keylime (you should likely change this)
-REPO="/home/${USER}/keylime"
+# You can specify the path of the local keylime repository as argument
+# of this script or using the KEYLIME_REPO_PATH environment variable.
+# The default value is /home/${USER}/keylime
+REPO=${KEYLIME_REPO_PATH:-${1:-/home/${USER}/keylime}}
 
 # keylime images
 tpm12image="lukehinds/keylime-ci-tpm12"
 tpm12tag="v500"
 tpm20image="lukehinds/keylime-ci-tpm20"
-tpm20tag="v501"
+tpm20tag="v101"
 
 echo -e "Grabbing latest images"
 

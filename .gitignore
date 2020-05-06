@@ -24,6 +24,8 @@ var/
 .installed.cfg
 *.egg
 MANIFEST
+AUTHORS
+ChangeLog
 
 # Installer logs
 pip-log.txt
@@ -46,4 +48,5 @@ docs/_build/
 swtpm2_scripts/NVChip
 test/.auditing-*
 test/NVChip
+NVChip
 test/testdata.sqlite
