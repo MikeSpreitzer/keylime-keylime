@@ -15,7 +15,6 @@ above. Use of this work other than as specifically authorized by the U.S. Govern
 violate any copyrights that exist in this work.
 '''
 
-import datetime
 import argparse
 import base64
 import hashlib
@@ -35,7 +34,6 @@ except ImportError:
     raise("Simplejson is mandatory, please install")
 
 from keylime import httpclient_requests
-from keylime import tornado_requests
 from keylime import common
 from keylime import keylime_logging
 from keylime import registrar_client
@@ -43,7 +41,7 @@ from keylime import tpm_obj
 from keylime.tpm_abstract import  TPM_Utilities, Hash_Algorithms, Encrypt_Algorithms, Sign_Algorithms
 from keylime import ima
 from keylime import crypto
-from keylime import user_data_encrypt
+from keylime.cmd import user_data_encrypt
 from keylime import ca_util
 from keylime import cloud_verifier_common
 
@@ -387,7 +385,7 @@ class Tenant():
 
     def validate_tpm_quote(self,public_key,quote,tpm_version,hash_alg):
         registrar_client.init_client_tls(config,'tenant')
-        reg_keys = registrar_client.getKeys(self.cloudverifier_ip,self.registrar_port,self.agent_uuid)
+        reg_keys = registrar_client.getKeys(self.registrar_ip,self.registrar_port,self.agent_uuid)
         if reg_keys is None:
             logger.warning("AIK not found in registrar, quote not validated")
             return False
@@ -687,7 +685,7 @@ class Tenant():
             response = httpclient_requests.request("POST", "%s"%(self.cloudagent_ip), self.cloudagent_port, params=params, data=u_json_message)
 
             if response == 503:
-                logger.error(f"Cannot connect to Verifier at {self.cloudverifier_ip} with Port {self.cloudverifier_port}. Connection refused.")
+                logger.error(f"Cannot connect to Agent at {self.cloudagent_ip} with Port {self.cloudagent_port}. Connection refused.")
                 exit()
             elif response == 504:
                 logger.error(f"Verifier at {self.cloudverifier_ip} with Port {self.cloudverifier_port} timed out.")
@@ -841,11 +839,3 @@ def main(argv=sys.argv):
         mytenant.do_regdelete()
     else:
         raise UserError("Invalid command specified: %s"%(args.command))
-
-if __name__=="__main__":
-    try:
-        main()
-    except UserError as ue:
-        logger.error(str(ue))
-    except Exception as e:
-        logger.exception(e)
