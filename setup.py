@@ -39,7 +39,7 @@ setuptools.setup(
     url='https://keylime.dev',
     python_requires='>=3.6',
     packages=['keylime'],
-    package_data={'keylime': ['*','*/*']},
+    package_data={'keylime': ['*','*/*', '*/*/*']},
     classifiers=[
         'Environment :: Console',
         'Intended Audience :: Developers',
