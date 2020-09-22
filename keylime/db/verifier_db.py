@@ -30,7 +30,7 @@ class VerfierMain(Base):
     tpm_policy = Column(String(1000))
     vtpm_policy = Column(String(1000))
     meta_data = Column(String(200))
-    ima_whitelist = Column(String(65536))
+    ima_whitelist = Column(String(21845))
     revocation_key = Column(String(16384))
     tpm_version = Column(Integer)
     accept_tpm_hash_algs = Column(JSONPickleType(pickler=json))
