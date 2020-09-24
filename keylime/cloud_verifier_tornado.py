@@ -454,7 +454,7 @@ class AgentsHandler(BaseHandler):
                     agent['agent_id'] + ", Error: " + str(response.status_code)
                 logger.critical(error)
                 asyncio.ensure_future(self.process_agent(
-                    agent, cloud_verifier_common.CloudAgent_Operational_State.FAILED))
+                    agent, cloud_verifier_common.CloudAgent_Operational_State.GET_QUOTE_RETRY))
         else:
             try:
                 json_response = json.loads(response.body)
