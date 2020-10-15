@@ -378,7 +378,7 @@ def cmd_listen(workingdir, cert_path):
             logger.info("checking CRL for expiration every hour")
             while True:
                 try:
-                    if os.path.exists('cacrl.der'):
+                    if os.path.exists('cacrl.der') and os.stat('cacrl.der').st_size :
                         retout = cmd_exec.run(
                             "openssl crl -inform der -in cacrl.der -text -noout", lock=False)['retout']
                         for line in retout:
