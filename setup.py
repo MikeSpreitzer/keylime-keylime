@@ -74,5 +74,5 @@ setuptools.setup(
     },
     ext_modules=extensions,
     data_files=[('/etc', ['keylime.conf'])],
-    package_data={'keylime': ['migrations/alembic.ini']}
+#    package_data={'keylime': ['migrations/alembic.ini']}
 )
