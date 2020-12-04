@@ -1,3 +1,6 @@
+# temp directories for eventlog conversions
+.klcvt
+
 /cloudinit_script_encrypted.txt
 # Backup files
 *.~
