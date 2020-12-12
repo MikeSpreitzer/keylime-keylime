@@ -17,9 +17,9 @@
 	"shim": [{"sha256":"2ea4cb6a1f1eb1d3dce82d54fde26ded243ba3e18de7c6d211902a594fe56788"}],
 	"grub": [{"sha256":"5d925248139ad547a78a00acf0a51977c6064262d2119c0aeacc79807dbc7354"}],
 	"moklist": [{"sha256":"4c179aee764ad9234c6c235be187b360777cfc5f183a9cbfe9add6a2ae91e51b"}],
-	"runs": [{"kernel_cmdline": "/xcat/osimage/ubuntu18.04-x86_64-netboot-hostos-boot_bionic-4.15.0.1075-20201120-ba1d643/kernel.*",
-			  "kernel": {"name":"/xcat/osimage/ubuntu18.04-x86_64-netboot-hostos-boot_bionic-4.15.0.1075-20201120-ba1d643/kernel\u0000",
+	"runs": [{"kernel_cmdline": "/xcat/osimage/ubuntu18.04-x86_64-netboot-hostos-boot_bionic-4.15.0.1075-20201120-ba1d643/kernel imgurl=http://192.168.0.4:80//install/netboot/ubuntu18.04/x86_64/hostos-boot_bionic-4.15.0.1075-20201120-ba1d643/rootimg.tar.gz XCAT=192.168.0.4:3001 XCATHTTPPORT=80 console=tty0 console=ttyS1,115200 default_hugepagesz=1G hugepagesz=1G hugepages=1 transparent_hugepage=never intel_iommu=on iommu=pt ds=nocloud audit=1 crashkernel=768M,low crashkernel=4G,high BOOTIF=01-0c:c4:7a:ff:5f:c8",
+			  "kernel": {"name":"/xcat/osimage/ubuntu18.04-x86_64-netboot-hostos-boot_bionic-4.15.0.1075-20201120-ba1d643/kernel",
 						 "digest": {"sha256":"122379caf2a84a794b5c0bd4307e6d030e3a1bdde7c4b45982a2c7cb1d9fcd9e"}},
-			  "initrd": "/xcat/osimage/ubuntu18.04-x86_64-netboot-hostos-boot_bionic-4.15.0.1075-20201120-ba1d643/initrd-stateless.gz\u0000"
+			  "initrd": "/xcat/osimage/ubuntu18.04-x86_64-netboot-hostos-boot_bionic-4.15.0.1075-20201120-ba1d643/initrd-stateless.gz"
 	}]
 }

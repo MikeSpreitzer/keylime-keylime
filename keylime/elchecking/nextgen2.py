@@ -82,16 +82,16 @@ class NextGen2(policies.Policy):
                        shimgrubtest)
         dispatcher.set((14, 'EV_IPL'),
                        tests.DigestTest(params['moklist']))
-        dispatcher.set((8, 'EV_IPL'), tests.FieldTest('Event', tests.Or(
+        dispatcher.set((8, 'EV_IPL'), tests.FieldTest('Event', tests.FieldTest('String', tests.Or(
             tests.RegExp('grub_cmd: .*', re.DOTALL),
             tests.And(
                 tests.RegExp('kernel_cmdline: .*'),
                 run.get('kernel_cmdline'))
-        )))
-        dispatcher.set((9, 'EV_IPL'), tests.Or(
-            tests.FieldTest('Event', tests.RegExp(r'\(tftp,.*\).*')),
-            tests.FieldTest('Event', tests.RegExp(r'/boot/grub.*')),
-            tests.FieldTest('Event', run.get('ipl9'))))
+        ))))
+        dispatcher.set((9, 'EV_IPL'), tests.FieldTest('Event', tests.FieldTest('String', tests.Or(
+            tests.RegExp(r'\(tftp,.*\).*'),
+            tests.RegExp(r'/boot/grub.*'),
+            run.get('ipl9')))))
         event_test = tests.IterateTest(
             dispatcher, show_elt=True,
             initial_test=run.get_reset(), final_test=run)
