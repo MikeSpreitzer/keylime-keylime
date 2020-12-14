@@ -4,23 +4,27 @@ import typing
 
 # This module defines the abstraction of a Test (of JSON data)
 # and several specific test classes.
-# A Test can be applied to multiple data structures --- one at a time.
+# A Test can be used multiple times, even concurrently.
 
 # VisualStudio Code objects to the subscripting but Python accepts it
 Data = typing.Union[int, str, bool, typing.Tuple['Data', ...],
                     typing.Mapping[str, 'Data'], None]
 """Data structure corresponding to JSON"""
 
+Globals = typing.Mapping[str, Data]
+"""Globals is a dict of variables for communication among tests.  There is a distinct dict for each top-level test."""
+
 
 class Test(metaclass=abc.ABCMeta):
     """Test is something that can examine a value and either approve it or explain the reason why not"""
 
     @abc.abstractmethod
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, gobals: Globals, subject: Data) -> str:
         """Test the given value, return empty string for pass, explanation for fail.
 
         The explanation is (except in deliberate exceptions) English that
         makes a sentence when placed after a noun phrase.
+        The test can read and write in the given globals dict.
         """
         raise NotImplementedError
 
@@ -43,7 +47,7 @@ class AcceptAll(Test, object):
         super(AcceptAll, self).__init__()
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         return ''
     pass
 
@@ -58,13 +62,15 @@ class RejectAll(Test, object):
         self.why = why
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         return self.why
     pass
 
 
 class And(Test, object):
-    """Conjunction of given tests"""
+    """Conjunction of given tests
+
+    The tests are run in series, stopping as soon as one fails."""
 
     def __init__(self, *tests: Test):
         super(And, self).__init__()
@@ -72,9 +78,9 @@ class And(Test, object):
         self.tests = tests
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         for test in self.tests:
-            reason = test.why_not(subject)
+            reason = test.why_not(globals, subject)
             if reason:
                 return reason
         return ''
@@ -82,7 +88,9 @@ class And(Test, object):
 
 
 class Or(Test, object):
-    """Disjunction of given tests"""
+    """Disjunction of given tests
+
+    The tests are run in series, stopping as soon as one succeeds."""
 
     def __init__(self, *tests: Test):
         super(Or, self).__init__()
@@ -90,12 +98,12 @@ class Or(Test, object):
         self.tests = tests
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not self.tests:
             return 'does not pass empty disjunction'
         reasons = []
         for test in self.tests:
-            reason = test.why_not(subject)
+            reason = test.why_not(globals, subject)
             if not reason:
                 return ''
             reasons.append(reason)
@@ -126,7 +134,7 @@ class Dispatcher(Test, object):
         self.tests[key_vals] = test
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, dict):
             return f'is not a dict'
         if self.key_names[0] not in subject:
@@ -139,7 +147,7 @@ class Dispatcher(Test, object):
         if key_vals not in self.tests:
             return f'has unexpected {self.key_names} combination {key_vals}'
         test = self.tests[key_vals]
-        return test.why_not(subject)
+        return test.why_not(globals, subject)
     pass
 
 
@@ -156,12 +164,12 @@ class FieldTest(Test, object):
         self.show_name = show_name
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, dict):
             return f'is not a dict'
         if self.field_name not in subject:
             return f'has no {self.field_name} field'
-        reason = self.field_test.why_not(subject[self.field_name])
+        reason = self.field_test.why_not(globals, subject[self.field_name])
         if reason and self.show_name:
             return self.field_name + ' ' + reason
         return reason
@@ -191,22 +199,22 @@ class IterateTest(Test, object):
         self.final_test = final_test
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, list):
             return f'is not a list'
         if self.initial_test:
-            reason = self.initial_test.why_not(subject)
+            reason = self.initial_test.why_not(globals, subject)
             if reason:
                 return reason
         for idx, elt in enumerate(subject):
-            reason = self.elt_test.why_not(elt)
+            reason = self.elt_test.why_not(globals, elt)
             if not reason:
                 continue
             if self.show_elt:
                 return f'{elt!a} ' + reason
             return f'[{idx}] ' + reason
         if self.final_test:
-            reason = self.final_test.why_not(subject)
+            reason = self.final_test.why_not(globals, subject)
             if reason:
                 return reason
         return ''
@@ -214,7 +222,9 @@ class IterateTest(Test, object):
 
 
 class TupleTest(Test, object):
-    """Applies a sequence of tests to a sequence of values"""
+    """Applies a sequence of tests to a sequence of values
+
+    The tests are run in series, stopping as soon as one fails"""
 
     def __init__(self, *tests: Test):
         super(TupleTest, self).__init__()
@@ -222,13 +232,13 @@ class TupleTest(Test, object):
         self.tests = tests
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, list):
             return f'is not a list'
         if len(subject) != len(self.tests):
             return f' has length {len(subject)} instead of {len(self.tests)}'
         for idx, test in enumerate(self.tests):
-            reason = test.why_not(subject[idx])
+            reason = test.why_not(globals, subject[idx])
             if reason:
                 return f'[{idx}] ' + reason
         return ''
@@ -244,23 +254,26 @@ class DelayedField(Test, object):
         self.field_name = field_name
         return
 
-    def why_not(self, subject) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         """Add the value to the list stashed for later testing"""
-        self.delayer.delayed[self.field_name].append(subject)
+        val_list = globals[self.field_name]
+        if not isinstance(val_list, list):
+            return f'malformed test: global {self.field_name} is not a list'
+        val_list.append(subject)
         return ''
     pass
 
 
-class DelayResetter(Test, object):
-    """A Test that resets a DelayToFields and reports acceptance"""
+class DelayInitializer(Test, object):
+    """A Test that initializes the globals used buy a DelayToFields and reports acceptance"""
 
-    def __init__(self, delay: 'DelayToFields'):
-        super(DelayResetter, self).__init__()
-        self.delay = delay
+    def __init__(self, delayer: 'DelayToFields'):
+        super(DelayInitializer, self).__init__()
+        self.delayer = delayer
         return
 
-    def why_not(self, subject):
-        self.delay.reset()
+    def why_not(self, globals: Globals, subject):
+        self.delayer.initialize_globals(globals)
         return ''
     pass
 
@@ -268,7 +281,8 @@ class DelayResetter(Test, object):
 class DelayToFields(Test, object):
     """A test to apply after stashing fields to test.
 
-    For each field, accumulates a list of values.
+    For each field, accumulates a list of values
+    in a correspondingly-named global.
     As a test, ignores the given subject and instead applies the
     configured fields_test to the record of accumulated value lists.
     """
@@ -279,14 +293,15 @@ class DelayToFields(Test, object):
         self.fields_test = fields_test
         return
 
-    def reset(self):
+    def initialize_globals(self, globals: Globals):
         """Initialize for a new pass over data"""
-        self.delayed = {field_name: [] for field_name in self.field_names}
+        for field_name in self.field_names:
+            globals[field_name] = []
         return
 
-    def get_reset(self):
-        """Get a test that accepts the subject and resets this delayer"""
-        return DelayResetter(self)
+    def get_initializer(self):
+        """Get a test that accepts the subject and initializes the relevant globals"""
+        return DelayInitializer(self)
 
     def get(self, field_name: str) -> Test:
         """Return a test that adds the value to the list stashed for later evaulation"""
@@ -294,9 +309,12 @@ class DelayToFields(Test, object):
             raise Exception(f'{field_name} not in {self.field_names}')
         return DelayedField(self, field_name)
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         """Test the stashed field values"""
-        return self.fields_test.why_not(self.delayed)
+        delayed = dict()
+        for field_name in self.field_names:
+            delayed[field_name] = globals.get(field_name, None)
+        return self.fields_test.why_not(globals, delayed)
     pass
 
 
@@ -310,7 +328,7 @@ class StringEqual(Test, object):
         self.val = val
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, str):
             return f'is not a str'
         if subject == self.val:
@@ -327,7 +345,7 @@ class RegExp(Test, object):
         self.regexp = re.compile(pattern, flags)
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, str):
             return f'is not a str'
         if self.regexp.fullmatch(subject):
@@ -356,7 +374,7 @@ class DigestTest(Test, object):
         self.or_else = or_else
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, dict):
             return f'is not a dict'
         if 'Digests' not in subject:
@@ -383,7 +401,7 @@ class DigestTest(Test, object):
                 return ''
         if not self.or_else:
             return f'has no digest approved by {self.good_digests}'
-        reason = self.or_else.why_not(subject)
+        reason = self.or_else.why_not(globals, subject)
         if not reason:
             return ''
         return reason + f' and has no digest approved by {self.good_digests}'
@@ -408,7 +426,7 @@ class VariableTest(Test, object):
         self.data_test = data_test
         return
 
-    def why_not(self, subject: Data) -> str:
+    def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, dict):
             return 'is not a dict'
         if 'Event' not in subject:
@@ -434,7 +452,7 @@ class VariableTest(Test, object):
                 return f'Event.UnicodeName is {unicode_name} rather than {self.unicode_name}'
         elif not self.unicode_name.fullmatch(unicode_name):
             return f'Event.UnicodeName, {unicode_name}, does not match {self.unicode_name.pattern}'
-        return self.data_test.why_not(variable_data)
+        return self.data_test.why_not(globals, variable_data)
     pass
 
 

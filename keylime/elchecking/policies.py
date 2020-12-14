@@ -60,5 +60,5 @@ def convert_and_use_test_result(eventlog: bytes, test: tests.Test, consume: typi
     if type(eventlog) != bytes:
         return f'eventlog is a {type(eventlog)} rather than bytes'
     conversions.bin_to_json(eventlog,
-                            lambda logdata: consume(test.why_not(logdata)))
+                            lambda logdata: consume(test.why_not(dict(), logdata)))
     return

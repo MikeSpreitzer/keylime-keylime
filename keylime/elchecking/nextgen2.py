@@ -94,7 +94,7 @@ class NextGen2(policies.Policy):
             run.get('ipl9')))))
         event_test = tests.IterateTest(
             dispatcher, show_elt=True,
-            initial_test=run.get_reset(), final_test=run)
+            initial_test=run.get_initializer(), final_test=run)
         return tests.FieldTest('events', event_test, show_name=False)
 
     pass
