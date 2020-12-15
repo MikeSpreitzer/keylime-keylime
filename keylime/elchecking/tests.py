@@ -14,6 +14,12 @@ Data = typing.Union[int, str, bool, typing.Tuple['Data', ...],
 Globals = typing.Mapping[str, Data]
 """Globals is a dict of variables for communication among tests.  There is a distinct dict for each top-level test."""
 
+PCR_Contents = typing.Mapping[str, typing.Mapping[str, int]]
+"""PCR_Contents maps digest name to map from PCR index to PCR value
+
+Here digest name is something like 'sha256'.
+The PCR index is a number expressed in decimal."""
+
 
 class Test(metaclass=abc.ABCMeta):
     """Test is something that can examine a value and either approve it or explain the reason why not"""
@@ -190,22 +196,15 @@ class FieldsTest(And):
 class IterateTest(Test, object):
     """Applies a test to every member of a list, plus optionally one to all at the end"""
 
-    def __init__(self, elt_test: Test, show_elt: bool = False,
-                 initial_test: Test = None, final_test: Test = None):
+    def __init__(self, elt_test: Test, show_elt: bool = False,):
         super(IterateTest, self).__init__()
         self.elt_test = elt_test
         self.show_elt = show_elt
-        self.initial_test = initial_test
-        self.final_test = final_test
         return
 
     def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, list):
             return f'is not a list'
-        if self.initial_test:
-            reason = self.initial_test.why_not(globals, subject)
-            if reason:
-                return reason
         for idx, elt in enumerate(subject):
             reason = self.elt_test.why_not(globals, elt)
             if not reason:
@@ -213,10 +212,6 @@ class IterateTest(Test, object):
             if self.show_elt:
                 return f'{elt!a} ' + reason
             return f'[{idx}] ' + reason
-        if self.final_test:
-            reason = self.final_test.why_not(globals, subject)
-            if reason:
-                return reason
         return ''
     pass
 
@@ -318,22 +313,39 @@ class DelayToFields(Test, object):
     pass
 
 
+class IntEqual(Test, object):
+    """Compares with a given int"""
+
+    def __init__(self, expected: int):
+        super(IntEqual, self).__init__()
+        type_test(int)(expected)
+        self.expected = expected
+        return
+
+    def why_not(self, globals: Globals, subject: Data) -> str:
+        if not isinstance(subject, int):
+            return f'is not a int'
+        if subject == self.expected:
+            return ''
+        return f'is not {self.expected}'
+    pass
+
+
 class StringEqual(Test, object):
     """Compares with a given string"""
 
-    def __init__(self, val: str):
+    def __init__(self, expected: str):
         super(StringEqual, self).__init__()
-        if type(val) != str:
-            raise Exception(f'{val} is not a str')
-        self.val = val
+        type_test(str)(expected)
+        self.expected = expected
         return
 
     def why_not(self, globals: Globals, subject: Data) -> str:
         if not isinstance(subject, str):
             return f'is not a str'
-        if subject == self.val:
+        if subject == self.expected:
             return ''
-        return f'is not {self.val!a}'
+        return f'is not {self.expected!a}'
     pass
 
 
@@ -502,3 +514,53 @@ class KeySubset(IterateTest):
             FieldTest('Keys', IterateTest(SignatureSetMember(keys)))))
         return
     pass
+
+
+class DeficientQuote(Exception):
+    """Identifies a problem with the actual PCR_Contents"""
+
+    def __init__(self, reason):
+        super(DeficientQuote, self).__init__()
+        self.reason = reason
+        return
+
+    def get_reason(self) -> str:
+        return self.reason
+
+    pass
+
+
+class PCRs_Test(FieldTest, object):
+    """PCR_Test checks whether expected contents equal given (quoted) contents"""
+
+    def __init__(self, care: typing.Mapping[str, typing.Iterable[int]], got_pcrs: PCR_Contents):
+        """initialize with contents gotten from agent and identification of which matter
+
+        care maps hash name to list of PCR index.
+        got_pcrs maps hash name to map from PCR index (as decimal string)
+        to hash value (as int)."""
+        type_test(dict)(care)
+        if not isinstance(got_pcrs, dict):
+            raise DeficientQuote('got_pcrs is not a dict')
+        digest_tests = []
+        for hash_name, pcr_indices in care.items():
+            type_test(str)(hash_name)
+            type_test(list)(pcr_indices)
+            if hash_name not in got_pcrs:
+                raise DeficientQuote(f'no {hash_name} hashes')
+            got_by_index = got_pcrs[hash_name]
+            index_tests = []
+            for index in pcr_indices:
+                type_test(int)(index)
+                index_s = str(index)
+                if index_s not in got_by_index:
+                    raise DeficientQuote(f'PCR {index} got no {hash_name}')
+                got_val = got_by_index[index_s]
+                if not isinstance(got_val, int):
+                    raise DeficientQuote(
+                        f'PCR {index} digest {hash_name} is not an int')
+                index_tests.append(FieldTest(index_s, IntEqual(got_val)))
+            digest_tests.append(FieldTest(hash_name, And(*index_tests)))
+        pcrs_test = And(*digest_tests)
+        super(PCRs_Test, self).__init__('pcrs', pcrs_test)
+        return

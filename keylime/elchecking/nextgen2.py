@@ -1,4 +1,5 @@
 import re
+import typing
 
 from . import policies
 from . import conversions
@@ -9,7 +10,7 @@ from . import tests
 # - all the PK, KEK, db, and MoK keys are allowed ones, and
 # - all the code that was loaded during boot is allowed.
 
-# This policy expects to find the following entries in params.
+# This policy expects to find the following entries in intended state.
 # s_crtm - list of allowed digest for PCR 0 event type EV_S_CRTM_VERSION.
 # post_code - list of allowed digest for PCR 0 event type EV_POST_CODE
 # pk - list of allowed PK keys
@@ -33,7 +34,7 @@ class NextGen2(policies.Policy):
         super(NextGen2, self).__init__()
         return
 
-    def compile(self, params):
+    def compile(self, params: policies.IntendedState) -> policies.QuoteContentTester:
         for req in ('s_crtm', 'post_code', 'pk', 'kek', 'db', 'device_drivers',
                     'shim', 'grub', 'runs'):
             if req not in params:
@@ -92,10 +93,29 @@ class NextGen2(policies.Policy):
             tests.RegExp(r'\(tftp,.*\).*'),
             tests.RegExp(r'/boot/grub.*'),
             run.get('ipl9')))))
-        event_test = tests.IterateTest(
-            dispatcher, show_elt=True,
-            initial_test=run.get_initializer(), final_test=run)
-        return tests.FieldTest('events', event_test, show_name=False)
+        event_test = tests.IterateTest(dispatcher, show_elt=True)
+        events_test = tests.FieldTest('events',
+                                      tests.And(
+                                          run.get_initializer(),
+                                          event_test,
+                                          run),
+                                      show_name=False)
+
+        def whole_test(logbin: bytes, got_pcrs: policies.PCR_Contents, consumer: policies.TestResultConsumer) -> typing.Any:
+            relevant_indices = list(range(10))+[14]
+            care = dict(sha1=relevant_indices, sha256=relevant_indices)
+            try:
+                pcrs_test = tests.PCRs_Test(care, got_pcrs)
+            except tests.DeficientQuote as dq:
+                reason = dq.get_reason()
+                return consumer(reason)
+            all_test = tests.And(events_test, pcrs_test)
+
+            def data_test(logdat):
+                reason = all_test.why_not(dict(), logdat)
+                return consumer(reason)
+            return conversions.bin_to_json(logbin, data_test)
+        return whole_test
 
     pass
 

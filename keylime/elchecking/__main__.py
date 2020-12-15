@@ -17,8 +17,9 @@ def consume_reason(why_fails: str):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('policy_name', choices=policies.get_policies())
+parser.add_argument('policy_name', choices=policies.get_policy_names())
 parser.add_argument('params_file', type=argparse.FileType('rt'))
+parser.add_argument('pcrs_file', type=argparse.FileType('rt'))
 parser.add_argument(
     'eventlog_file', type=argparse.FileType('rb'), default=sys.stdin)
 args = parser.parse_args()
@@ -26,5 +27,7 @@ params_str = args.params_file.read()
 params = json.loads(params_str)
 test = policies.compile(args.policy_name, params)
 elbin = args.eventlog_file.read()
-policies.convert_and_use_test_result(elbin, test, consume_reason)
+got_pcrs_str = args.pcrs_file.read()
+got_pcrs = json.loads(got_pcrs_str)
+test(elbin, got_pcrs, consume_reason)
 print('AOK')

@@ -10,7 +10,7 @@ import tempfile
 import typing
 
 
-def bin_to_json(bin: bytes, consume: typing.Any) -> None:
+def bin_to_json(bin: bytes, consume: typing.Any) -> typing.Any:
     """Parse, enrich, and use an eventlog.
 
     Given a binary eventlog as a Python bytes, parse and enrich then use.
@@ -69,9 +69,11 @@ def bin_to_json(bin: bytes, consume: typing.Any) -> None:
     with open(temp_enriched_name, 'rt') as temp_enriched:
         as_json = temp_enriched.read()
     as_py = json.loads(as_json)
-    consume(as_py)
-    shutil.rmtree(temp_name)
-    return
+    try:
+        return consume(as_py)
+    finally:
+        shutil.rmtree(temp_name)
+    pass
 
 
 if __name__ == '__main__':
