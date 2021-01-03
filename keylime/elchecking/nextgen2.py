@@ -30,8 +30,9 @@ from . import tests
 
 
 class NextGen2(policies.Policy):
-    def __init__(self):
+    def __init__(self, test_pcrs: bool):
         super(NextGen2, self).__init__()
+        self.test_pcrs = test_pcrs
         return
 
     def compile(self, params: policies.IntendedState) -> policies.QuoteContentTester:
@@ -101,15 +102,18 @@ class NextGen2(policies.Policy):
                                           run),
                                       show_name=False)
 
-        def whole_test(logbin: bytes, got_pcrs: policies.PCR_Contents, consumer: policies.TestResultConsumer) -> typing.Any:
-            relevant_indices = list(range(10))+[14]
-            care = dict(sha1=relevant_indices, sha256=relevant_indices)
-            try:
-                pcrs_test = tests.PCRs_Test(care, got_pcrs)
-            except tests.DeficientQuote as dq:
-                reason = dq.get_reason()
-                return consumer(reason)
-            all_test = tests.And(events_test, pcrs_test)
+        def whole_test(logbin: bytes, got_pcrs: tests.PCR_Contents, consumer: policies.TestResultConsumer) -> typing.Any:
+            if self.test_pcrs:
+                relevant_indices = list(range(10))+[14]
+                care = dict(sha1=relevant_indices, sha256=relevant_indices)
+                try:
+                    pcrs_test = tests.PCRs_Test(care, got_pcrs)
+                except tests.DeficientQuote as dq:
+                    reason = dq.get_reason()
+                    return consumer(reason)
+                all_test = tests.And(events_test, pcrs_test)
+            else:
+                all_test = events_test
 
             def data_test(logdat):
                 reason = all_test.why_not(dict(), logdat)
@@ -120,4 +124,5 @@ class NextGen2(policies.Policy):
     pass
 
 
-policies.register('nextgen2', NextGen2())
+policies.register('nextgen2', NextGen2(True))
+policies.register('nextgen2-ignore-pcrs', NextGen2(False))

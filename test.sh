@@ -9,3 +9,5 @@
 cd $(dirname $0)
 export PYTHONPATH=.:${PYTHONPATH}
 python3 -m keylime.elchecking nextgen2 test-params.json test-pcrs.json ../../../github.ibm.com/k8s4g/intel-tpm2-tss/data/gen2/pok1-qz1-sr1-rk048-s03/secure-boot/201123-eventlog.bin
+python3 -m keylime.elchecking nextgen2-ignore-pcrs test-params.json test-params.json ../../../github.ibm.com/k8s4g/intel-tpm2-tss/data/gen2/pok1-qz1-sr1-rk048-s03/secure-boot/201123-eventlog.bin
+python3 -m keylime.elchecking accept-all test-params.json test-params.json ../../../github.ibm.com/k8s4g/intel-tpm2-tss/data/gen2/pok1-qz1-sr1-rk048-s03/1

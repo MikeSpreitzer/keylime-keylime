@@ -42,6 +42,19 @@ class Policy(metaclass=abc.ABCMeta):
     pass
 
 
+class AcceptAll(Policy):
+    """Policy that accepts all eventlogs"""
+
+    def __init__(self):
+        super(AcceptAll, self).__init__()
+        return
+
+    def compile(self, params: IntendedState) -> QuoteContentTester:
+        def test(eventlog: bytes, pcr_contents: tests.PCR_Contents, continuation: TestResultConsumer) -> typing.Any:
+            return continuation('')
+        return test
+
+
 def _mkreg() -> typing.Mapping[str, Policy]:
     return dict()
 
@@ -55,6 +68,9 @@ def register(name: str, policy: Policy):
     return
 
 
+register("accept-all", AcceptAll())
+
+
 def get_policy_names() -> typing.Tuple[str, ...]:
     """Return the list of policy names"""
     return list(_registry.keys())
@@ -66,3 +82,17 @@ def compile(policy_name: str, params: IntendedState) -> QuoteContentTester:
         return f'there is no policy named {policy_name!a}'
     policy = _registry[policy_name]
     return policy.compile(params)
+
+
+def evaluate(policy_name: str, params: IntendedState, eventlog: bytes,
+             pcr_contents: tests.PCR_Contents, cont: TestResultConsumer) -> typing.Any:
+    """Evaluate the given eventlog and PCR contents using given intended state and policy
+
+    The given continuation is given either:
+    (a) an empty string to signal a good result or
+    (b) a non-empty string identifying something wrong.
+    We use continuation passing style here so that the test can leak
+    temp files when the consumer raises an Exception.
+    """
+    tester = compile(policy_name, params)
+    tester(eventlog, pcr_contents, cont)
