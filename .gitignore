@@ -1,6 +1,9 @@
 # temp directories for eventlog conversions
 .klcvt
 
+#Visual Studio Code workspace
+workspace.code-workspace
+
 /cloudinit_script_encrypted.txt
 # Backup files
 *.~
