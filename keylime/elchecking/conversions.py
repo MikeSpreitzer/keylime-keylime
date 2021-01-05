@@ -9,6 +9,10 @@ import sys
 import tempfile
 import typing
 
+import oyaml
+
+from .enrich import enrich
+
 
 def bin_to_json(bin: bytes, consume: typing.Any) -> typing.Any:
     """Parse, enrich, and use an eventlog.
@@ -34,7 +38,6 @@ def bin_to_json(bin: bytes, consume: typing.Any) -> typing.Any:
     parser_commit = 'dc0bf809d09ec263754d6625f5653e235856cb45'
     temp_bin_name = os.path.join(temp_name, 'bin')
     temp_parsed_name = os.path.join(temp_name, 'parsed.yaml')
-    temp_enriched_name = os.path.join(temp_name, 'enriched.json')
     with open(temp_bin_name, 'wb') as temp_bin:
         temp_bin.write(bin)
     with open(temp_parsed_name, 'wt') as temp_parsed:
@@ -52,23 +55,9 @@ def bin_to_json(bin: bytes, consume: typing.Any) -> typing.Any:
             raise Exception(
                 f'parse returned code {p1.returncode}, {temp_name=}, stderr={stdouterr1[1]!a}')
     with open(temp_parsed_name, 'rt') as temp_parsed:
-        with open(temp_enriched_name, 'wt') as temp_enriched:
-            p2 = subprocess.Popen(
-                ['docker', 'run', '--rm', '-i',
-                    f'9.41.33.175/intel-tpm2-tss:{parser_commit}', '/enrich.py', '-o', 'json'],
-                stdin=temp_parsed,
-                stdout=temp_enriched,
-                stderr=subprocess.PIPE)
-            try:
-                stdouterr2 = p2.communicate(timeout=100)
-            except subprocess.TimeoutExpired:
-                raise Exception('enrich took too long')
-            if p2.returncode != 0:
-                raise Exception(
-                    f'enrich returned code {p2.returncode}, {temp_name=}, stderr={stdouterr2[1]!a}')
-    with open(temp_enriched_name, 'rt') as temp_enriched:
-        as_json = temp_enriched.read()
-    as_py = json.loads(as_json)
+        parsed_str = temp_parsed.read()
+    as_py = oyaml.load(parsed_str, Loader=oyaml.FullLoader)
+    enrich(as_py)
     try:
         return consume(as_py)
     finally:
